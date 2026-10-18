@@ -11,6 +11,25 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoutineSettingsTest {
+    @Test void nodeRoutingDefaultsAndValidation() throws Exception {
+        try(var stream=getClass().getResourceAsStream("/config.yml")) {
+            assertNotNull(stream);
+            var yaml=YamlConfiguration.loadConfiguration(new InputStreamReader(stream,StandardCharsets.UTF_8));
+            assertDoesNotThrow(()->Settings.parse(yaml));
+            assertTrue(yaml.getBoolean("routines.nodes.enabled"));
+            assertEquals(12,yaml.getInt("routines.nodes.link-range"));
+        }
+        assertDoesNotThrow(()->Settings.parse(new YamlConfiguration()));
+        for(String option:List.of("link-range","endpoint-range","scan-margin","max-distance",
+                "scan-blocks-per-update","search-nodes-per-update")) {
+            for(Object value:List.of(-1,100000,2.5,Double.NaN,"muchos")) {
+                var yaml=new YamlConfiguration();yaml.set("routines.nodes."+option,value);
+                assertThrows(IllegalArgumentException.class,()->Settings.parse(yaml));
+            }
+        }
+        var yaml=new YamlConfiguration();yaml.set("routines.nodes.enabled","true");
+        assertThrows(IllegalArgumentException.class,()->Settings.parse(yaml));
+    }
     @Test void shippedDefaultsUseFullDanceRestCycleAndHalfBlockSeat() throws Exception {
         try (var stream = getClass().getResourceAsStream("/config.yml")) {
             assertNotNull(stream);

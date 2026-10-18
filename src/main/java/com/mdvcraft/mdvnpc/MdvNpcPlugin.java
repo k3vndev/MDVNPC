@@ -74,6 +74,7 @@ public final class MdvNpcPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(workEditor, this);
             getServer().getPluginManager().registerEvents(shops, this);
             getServer().getPluginManager().registerEvents(new NpcListener(this), this);
+            getServer().getPluginManager().registerEvents(new com.mdvcraft.mdvnpc.routine.NetheriteNodeListener(routines),this);
             if (getServer().getPluginManager().isPluginEnabled("WorldGuard")) {
                 getServer().getPluginManager().registerEvents(new WorldGuardSpawnHook(this), this);
                 getLogger().info("WorldGuard detectado: excepción de mob-spawning/deny-spawn "

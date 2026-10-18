@@ -23,6 +23,13 @@ import static org.mockito.Mockito.*;
 
 /** Service ownership and timing over actual positions; Navigator tests validate the arc. */
 class RoutineStuckHopTest {
+    @Test void pendingMarkerPlanningDoesNotRestartItselfThroughRecoveryHops() throws Exception {
+        when(navigator.planningNodes("thurg")).thenReturn(true);
+        start(walk());f.advance(182);noHop();
+        when(navigator.planningNodes("thurg")).thenReturn(false);
+        f.advance(60);
+        verify(navigator).startRecoveryHop(f.npc,.6,1,242);
+    }
     @TempDir Path folder;
     RoutineTransitionTest f;
     MdvNpcPlugin plugin;

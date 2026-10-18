@@ -72,6 +72,10 @@ public final class RoutineNavigator {
     private long budgetTick = Long.MIN_VALUE, spentNanos;
     private int maximumStarts = 2, startsLeft = 2;
     private long maximumNanos = 2_000_000;
+    private final NetheriteNodeIndex nodeIndex = new NetheriteNodeIndex();
+    private boolean nodesEnabled;
+    private int nodeLinkRange=12, nodeEndpointRange=16, nodeScanMargin=24, nodeMaxDistance=256;
+    private int nodeBlockBudget=8192, nodeSearchBudget=256, nodeBlocksLeft, nodeSearchLeft;
 
     private record PathPlan(List<Location> points, boolean reachesFinal, Location endpoint) {}
     private record SearchOutcome(PathPlan plan, SearchFailure failure) {}
@@ -92,6 +96,12 @@ public final class RoutineNavigator {
         boolean exhausted;
         boolean avoidClosedDoors;
         boolean doorDeniedDuringStep;
+        NetheriteNodeIndex.Scan nodeScan;
+        NetheriteNodeRouter nodeRouter;
+        boolean nodesTried, nodePath;
+        List<Node> routeMarkers=List.of();
+        final Map<Node,Node> markerSources=new HashMap<>();
+        int markerIndex;
         final Deque<Location> partialEndpoints = new ArrayDeque<>();
         double bestGoalDistance;
         double segmentStartBest;
@@ -160,6 +170,21 @@ public final class RoutineNavigator {
         MAX_DROP_HEIGHT = drop > 0 && drop <= 8 ? drop : 2.30;
         MAX_UNANNOUNCED_DROP = unannouncedDrop > 0 && unannouncedDrop <= MAX_DROP_HEIGHT ? unannouncedDrop : Math.min(1.01, MAX_DROP_HEIGHT);
     }
+    /** Hidden netherite markers guide long trips; terrain replay still owns every step. */
+    public void configureNodes(boolean enabled,int linkRange,int endpointRange,int scanMargin,
+                               int maxDistance,int blockBudget,int searchBudget) {
+        nodesEnabled=enabled;
+        nodeLinkRange=Math.max(2,Math.min(32,linkRange));
+        nodeEndpointRange=Math.max(2,Math.min(48,endpointRange));
+        nodeScanMargin=Math.max(0,Math.min(64,scanMargin));
+        nodeMaxDistance=Math.max(16,Math.min(512,maxDistance));
+        nodeBlockBudget=Math.max(256,Math.min(65536,blockBudget));
+        nodeSearchBudget=Math.max(16,Math.min(2048,searchBudget));
+        clear();
+    }
+    public void invalidateNodes(org.bukkit.World world,int blockX,int blockZ) {
+        if(nodesEnabled)nodeIndex.invalidate(world,blockX,blockZ);
+    }
     /** Compatibility with older integrations; the former A* limits and route cache are unused. */
     public RoutineNavigator(DoorController doors, BiPredicate<ActiveNpc, Location> teleport, int maxNodes, int cacheSize) {
         this(doors, teleport);
@@ -171,6 +196,7 @@ public final class RoutineNavigator {
         this.maximumStarts = Math.max(1, Math.min(8, maximumStarts));
         this.maximumNanos = Math.max(1, maximumNanos);
         startsLeft = this.maximumStarts; spentNanos = 0;
+        nodeBlocksLeft=nodeBlockBudget; nodeSearchLeft=nodeSearchBudget;
     }
     /** No background A* search remains. Kept for source compatibility only. */
     public void searchBudget(int nodes, long nanos) {}
@@ -380,6 +406,10 @@ public final class RoutineNavigator {
             travel.lastCommandPosition = current.clone();
             travel.lastProgressPosition = current.clone(); travel.lastProgressTick = tick;
             travel.localFailures = 0; travel.exhausted = false;
+            resetNodePlanning(travel);
+        }
+        if(travel.nodePath && !validNextMarker(travel,current)) {
+            localFailure(travel,tick);return Result.WAITING;
         }
         observeProgress(travel,current,tick);
         if (travel.path != null && tick-travel.lastProgressTick >= STUCK_TICKS) {
@@ -400,7 +430,13 @@ public final class RoutineNavigator {
                 // Settling onto a nearby verified floor follows the same speed limit as walking.
                 if (current.distanceSquared(start) > MOVEMENT_EPSILON_SQUARED) return Result.MOVING;
                 current = start;
-                SearchOutcome outcome = findPaperPath(travel, start);
+                PathPlan guided=null;
+                if(nodesEnabled && !travel.nodesTried) {
+                    guided=findNodePath(travel,start);
+                    if(!travel.nodesTried)return Result.WAITING;
+                }
+                SearchOutcome outcome = guided==null ? findPaperPath(travel, start)
+                        : new SearchOutcome(guided,SearchFailure.NONE);
                 if (outcome.plan() == null) {
                     if (outcome.failure() == SearchFailure.CHUNK) chunkFailure(travel,tick);
                     else if (outcome.failure() == SearchFailure.DENIED_DOOR && !travel.avoidClosedDoors)
@@ -855,6 +891,90 @@ public final class RoutineNavigator {
         return new SearchOutcome(new PathPlan(List.copyOf(path),reachesFinal,last.clone()),SearchFailure.NONE);
     }
 
+    /** Discovery and every local A* connector consume shared per-update allowances. */
+    private PathPlan findNodePath(Travel travel,Location current) {
+        if(travel.nodeScan==null)
+            travel.nodeScan=nodeIndex.discover(current.getWorld(),current,travel.destination,nodeScanMargin,nodeMaxDistance);
+        if(!travel.nodeScan.done()) {
+            if(nodeBlocksLeft<=0)return null;
+            nodeBlocksLeft-=travel.nodeScan.advance(nodeBlocksLeft);
+            if(!travel.nodeScan.done())return null;
+        }
+        if(travel.nodeRouter==null) {
+            // An incomplete scan must not create misleading links through a partial network.
+            if(travel.nodeScan.truncated()) {travel.nodesTried=true;return null;}
+            List<Node> markers=new ArrayList<>();
+            for(Node raw:travel.nodeScan.result()) {
+                if(!isMarker(travel,raw))continue;
+                Node surface=travel.terrain.near(new Location(current.getWorld(),raw.x()+.5,raw.y(),raw.z()+.5));
+                if(surface!=null && surface.y()>=raw.y() && surface.y()<=raw.y()+1) {
+                    markers.add(surface);travel.markerSources.put(surface,raw);
+                }
+            }
+            Node start=travel.terrain.near(current), goal=travel.terrain.near(travel.destination);
+            if(markers.isEmpty() || start==null || goal==null) {travel.nodesTried=true;return null;}
+            BoundedPathfinder.Grid grid=new BoundedPathfinder.Grid() {
+                public boolean stand(Node n) {return travel.terrain.stand(n);}
+                public boolean edge(Node a,Node b) {
+                    double from=travel.terrain.height(a),to=travel.terrain.height(b),delta=to-from;
+                    return delta<=MAX_CLIMB_HEIGHT+1e-7 && delta>=-MAX_DROP_HEIGHT-1e-7
+                            && travel.terrain.edge(a,b)
+                            && (delta<=0 || travel.terrain.fenceClearAtBase(b.x()+.5,from,b.z()+.5));
+                }
+            };
+            travel.nodeRouter=new NetheriteNodeRouter(markers,grid,start,goal,nodeLinkRange,nodeEndpointRange,2048);
+        }
+        if(!travel.nodeRouter.done()) {
+            if(nodeSearchLeft<=0)return null;
+            long started=System.nanoTime();
+            long allowance=Math.max(1,maximumNanos-spentNanos);
+            do {
+                nodeSearchLeft-=travel.nodeRouter.advance(Math.min(16,nodeSearchLeft));
+            } while(!travel.nodeRouter.done() && nodeSearchLeft>0 && System.nanoTime()-started<allowance);
+            if(!travel.nodeRouter.done())return null;
+        }
+        travel.nodesTried=true;
+        List<Node> route=travel.nodeRouter.result();
+        if(route==null || route.isEmpty() || route.size()>MAX_PATH_POINTS)return null;
+        for(Node marker:travel.nodeRouter.markers()) {
+            Node raw=travel.markerSources.get(marker);
+            if(raw==null || !isMarker(travel,raw))return null;
+        }
+        List<Location> points=new ArrayList<>();
+        for(Node n:route) {
+            if(!travel.terrain.stand(n))return null;
+            points.add(travel.terrain.location(n));
+        }
+        Location last=points.getLast();
+        if(Math.abs(last.getY()-travel.destination.getY())>.12)return null;
+        if(last.distanceSquared(travel.destination)>.0001)points.add(travel.destination.clone());
+        travel.routeMarkers=travel.nodeRouter.markers();travel.markerIndex=0;travel.nodePath=true;
+        return new PathPlan(List.copyOf(points),true,points.getLast().clone());
+    }
+    private boolean isMarker(Travel travel,Node raw) {
+        Block block=travel.terrain.block(raw.x(),raw.y()-2,raw.z());
+        Block cover=travel.terrain.block(raw.x(),raw.y()-1,raw.z());
+        return block!=null && block.getType()==org.bukkit.Material.NETHERITE_BLOCK
+                && RoutineTerrain.walkingSurface(cover);
+    }
+    private boolean validNextMarker(Travel travel,Location current) {
+        while(travel.markerIndex<travel.routeMarkers.size()) {
+            Node marker=travel.routeMarkers.get(travel.markerIndex);
+            Node raw=travel.markerSources.get(marker);
+            if(raw==null || !isMarker(travel,raw)) {
+                if(raw!=null)nodeIndex.invalidate(current.getWorld(),raw.x(),raw.z());
+                return false;
+            }
+            if(current.distanceSquared(travel.terrain.location(marker))>.25)return true;
+            travel.markerIndex++;
+        }
+        return true;
+    }
+    private void resetNodePlanning(Travel travel) {
+        travel.nodeScan=null;travel.nodeRouter=null;travel.nodesTried=false;travel.nodePath=false;
+        travel.routeMarkers=List.of();travel.markerSources.clear();travel.markerIndex=0;
+    }
+
     /** Only a denied closed panel changes Paper's door policy; other bad terrain does not. */
     private boolean deniedClosedDoor(Travel travel, Location feet) {
         boolean denied = false;
@@ -915,11 +1035,13 @@ public final class RoutineNavigator {
             travel.searchLevel++;travel.retry=tick+LOCAL_RETRY_TICKS;travel.exhausted=false;
         } else {
             travel.exhausted=true;travel.retry=tick+IMPOSSIBLE_RETRY_TICKS;
+            resetNodePlanning(travel);
             travel.avoidClosedDoors=false;
             travel.riserWaypoint=null;travel.riserHeight=Double.NaN;travel.riserBaseY=Double.NaN;travel.dropHeight=Double.NaN;
         }
     }
     private void localFailure(Travel travel,long tick) {
+        if(travel.nodePath)resetNodePlanning(travel);
         travel.path=null;travel.pending=true;travel.pathReachesFinal=false;travel.localFailures++;
         // Once a route is discarded it no longer owns an in-air Y transition. Releasing the
         // marker lets RoutineGravity settle the NPC instead of leaving it hovering/spinning.
@@ -942,6 +1064,10 @@ public final class RoutineNavigator {
     public boolean exhausted(String npc) {
         Travel travel=travels.get(npc);return travel!=null && travel.exhausted;
     }
+    /** Computing an incremental graph is deliberate waiting, not a physically stuck walk. */
+    public boolean planningNodes(String npc) {
+        Travel travel=travels.get(npc);return nodesEnabled && travel!=null && !travel.nodesTried;
+    }
     /** A staged lift remains owned by route replay during its short local retry. */
     public boolean controlsVerticalStep(String npc) {
         Travel travel=travels.get(npc);
@@ -950,6 +1076,7 @@ public final class RoutineNavigator {
     public void cancel(String npc) { travels.remove(npc);cancelHop(npc); }
     public void clear() {
         travels.clear();hops.clear();hopFailures.clear(); budgetTick = Long.MIN_VALUE;
+        nodeIndex.clear();
     }
 
     /**

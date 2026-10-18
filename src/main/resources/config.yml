@@ -24,6 +24,16 @@ routines:
   max-climb-height: 1.3 # bloques que un NPC puede subir al caminar (0..4)
   max-drop-height: 2.3 # bloques que un NPC puede bajar/caer al caminar (0..8)
   max-unannounced-drop: 1.01 # bajada máxima sin nodo explícito en la ruta Paper (<= max-drop-height)
+  # Nodo = netherita, encima un bloque de suelo y encima los pies del NPC.
+  # Se buscan conexiones transitables: los desniveles necesitan escalones/camino real.
+  nodes:
+    enabled: true
+    link-range: 12 # distancia máxima entre nodos vecinos; conviene colocarlos cada 4..8 bloques
+    endpoint-range: 16 # alcance del NPC al primer nodo y del último nodo al destino
+    scan-margin: 24 # margen alrededor del rectángulo origen-destino, en bloques
+    max-distance: 256 # trayectos más largos conservan el buscador Paper
+    scan-blocks-per-update: 8192 # presupuesto compartido de lectura de instantáneas
+    search-nodes-per-update: 256 # presupuesto compartido de búsqueda; repartido entre actualizaciones
   # Recuperación sólo al caminar hacia un goal; no salta vallas ni atraviesa obstáculos.
   stuck-hop:
     enabled: true

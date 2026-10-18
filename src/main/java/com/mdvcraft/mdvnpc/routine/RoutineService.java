@@ -110,6 +110,11 @@ public final class RoutineService {
         navigator=new RoutineNavigator(doors,this::teleport); failed.clear();
         var cfg=plugin.settings().messages();
         navigator.configureHeights(cfg.getDouble("routines.max-climb-height",1.30),cfg.getDouble("routines.max-drop-height",2.30),cfg.getDouble("routines.max-unannounced-drop",1.01));
+        boolean nodesEnabled=cfg.getBoolean("routines.nodes.enabled",true);
+        navigator.configureNodes(nodesEnabled,cfg.getInt("routines.nodes.link-range",12),
+                cfg.getInt("routines.nodes.endpoint-range",16),cfg.getInt("routines.nodes.scan-margin",24),
+                cfg.getInt("routines.nodes.max-distance",256),cfg.getInt("routines.nodes.scan-blocks-per-update",8192),
+                cfg.getInt("routines.nodes.search-nodes-per-update",256));
         stuckHopEnabled=cfg.getBoolean("routines.stuck-hop.enabled",true);
         stuckHopDelayTicks=20L*Math.max(1,Math.min(60,cfg.getInt("routines.stuck-hop.delay-seconds",3)));
         double hopHeight=cfg.getDouble("routines.stuck-hop.height",.6),hopDistance=cfg.getDouble("routines.stuck-hop.distance",1);
@@ -131,6 +136,9 @@ public final class RoutineService {
         dialogueStates.clear(); unavailableStates.clear();staticFloors.clear();
     }
     public void close() { stop(); clocks.close(); }
+    public void invalidateNodes(World world,int blockX,int blockZ) {
+        if(navigator!=null)navigator.invalidateNodes(world,blockX,blockZ);
+    }
     public void worldLoaded() { clocks.sync(); }
     public boolean enabled(String id) { var plan=repository.snapshot().plans().get(id); return plan!=null && plan.enabled() && !plan.goals().isEmpty(); }
     public List<RoutineGoal.Point> points(String id) {
@@ -569,7 +577,7 @@ public final class RoutineService {
             release(s,true);s.nextPick=ticks+100;s.status="destino sin ningún acceso alcanzable";return;
         }
         if(s.returningFromDance) {
-            if(result!=RoutineNavigator.Result.WAITING) {
+            if(result!=RoutineNavigator.Result.WAITING || navigator.planningNodes(id)) {
                 s.returnWaitingSince=0;
                 if(progressed)s.returnFailedDoorways=0;
             }
@@ -798,6 +806,9 @@ public final class RoutineService {
         ActiveNpc npc=s.npc;String id=npc.definition().id();
         if(!stuckHopEnabled || npc.entity().isInsideVehicle()) {clearStuckHop(s);return false;}
         boolean hopping=navigator.activeHop(id);
+        if(!hopping && navigator.planningNodes(id)) {
+            s.nextHopAttempt=ticks+stuckHopDelayTicks;return false;
+        }
         if(s.stuckAnchor==null && s.destination==null && !hopping)return false;
         if(hopping) {
             Location before=npc.position();
@@ -966,5 +977,5 @@ public final class RoutineService {
         if(failed.contains(id)) return "error: revisa consola";
         State s=states.get(id); return s==null?"pendiente de cargar zona":s.status+(s.goal==null?"":"; goal "+s.goal.order());
     }
-    public String metrics() { return "rutas Paper activas="+navigator.activeRoutes()+", búsquedas pendientes="+navigator.searches()+", NPC con estado="+states.size(); }
+    public String metrics() { return "rutas de navegación activas="+navigator.activeRoutes()+", búsquedas pendientes="+navigator.searches()+", NPC con estado="+states.size(); }
 }

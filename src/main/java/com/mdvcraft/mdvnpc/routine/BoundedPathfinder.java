@@ -41,7 +41,8 @@ public final class BoundedPathfinder {
                     if (!cost.containsKey(next) && cost.size() >= limit) { done = true; return used; }
                     cost.put(next, distance); parent.put(next, n); open.add(new Entry(next, distance + heuristic(next), distance));
                 }
-                break;
+                // A bridge and a lower floor can both be legal neighbours in the same
+                // column. Keep both so the first height cannot hide the only valid route.
             }
         }
         return used;

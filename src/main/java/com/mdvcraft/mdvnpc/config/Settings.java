@@ -43,7 +43,23 @@ public record Settings(int intervalTicks, int lookIntervalTicks, boolean ignoreI
                     || number.doubleValue() < .05 || number.doubleValue() > 4))
                 throw new IllegalArgumentException(key + ": usar bloques entre 0.05 y 4");
         }
+        Object nodesEnabled=yaml.get("routines.nodes.enabled");
+        if(nodesEnabled!=null && !(nodesEnabled instanceof Boolean))
+            throw new IllegalArgumentException("routines.nodes.enabled: usar true o false");
+        nodeInteger(yaml,"link-range",2,32);
+        nodeInteger(yaml,"endpoint-range",2,48);
+        nodeInteger(yaml,"scan-margin",0,64);
+        nodeInteger(yaml,"max-distance",16,512);
+        nodeInteger(yaml,"scan-blocks-per-update",256,65536);
+        nodeInteger(yaml,"search-nodes-per-update",16,2048);
         return new Settings(ticks, lookTicks, yaml.getBoolean("ignore-invisible-players", true),
                 yaml.getBoolean("ignore-spectators", true), threshold, yaml);
+    }
+    private static void nodeInteger(YamlConfiguration yaml,String option,int minimum,int maximum) {
+        String key="routines.nodes."+option;
+        Object value=yaml.get(key);
+        if(value!=null && (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())
+                || number.doubleValue()!=number.intValue() || number.intValue()<minimum || number.intValue()>maximum))
+            throw new IllegalArgumentException(key+": usar un entero entre "+minimum+" y "+maximum);
     }
 }
