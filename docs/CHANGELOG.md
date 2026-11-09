@@ -1,3 +1,22 @@
+# MDVNPC 1.13.0 — acompañantes temporales para otros plugins
+
+- Nueva API pública `com.mdvcraft.mdvnpc.api` registrada en el
+  `ServicesManager` (`MdvNpcApi`). Permite a otros plugins crear acompañantes:
+  NPC temporales que siguen, guían (`lead`) o caminan a un punto (`moveTo`),
+  hacen gestos (`WAVE`, `SWING`, `CROUCH`), hablan por chat y emiten
+  `CompanionInteractEvent` / `CompanionRemoveEvent`.
+- Los acompañantes no se guardan en `npcs.yml`, no tienen rutinas, sobreviven a
+  `/mdvnpc reload` y solo los ven sus jugadores visores. Pueden copiar nombre,
+  skin y prefijo de un NPC existente como plantilla sin modificarlo.
+- Nueva sección `companions:` en `config.yml` (límite `max-active: 20`,
+  velocidades y distancias). Las configuraciones antiguas usan los defaults del
+  JAR.
+- Los NPC configurados, sus rutinas, tiendas y skins guardadas no cambian: los
+  acompañantes usan su propio marcador (`companion-id`), listener y navegador.
+  La excepción de spawn de WorldGuard también los cubre.
+- El build genera además `MDVNPC-<versión>-api.jar` con solo la API.
+- Guía de uso: `docs/GUIA-ACOMPANANTES.md`.
+
 # MDVNPC 1.11.16 — yunque configurable y pesca vanilla
 
 - Cada martillazo del Herrero en la estación de yunque usa ahora

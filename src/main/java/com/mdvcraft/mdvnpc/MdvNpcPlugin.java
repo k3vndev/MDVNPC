@@ -41,6 +41,7 @@ public final class MdvNpcPlugin extends JavaPlugin {
     private com.mdvcraft.mdvnpc.routine.RoutineService routines;
     private com.mdvcraft.mdvnpc.routine.RoutineCommands routineCommands;
     private com.mdvcraft.mdvnpc.skin.SkinCacheService skins;
+    private com.mdvcraft.mdvnpc.companion.CompanionService companions;
     private final Messages messages = new Messages(this::settings);
     private Map<String, NpcDefinition> definitions = Map.of();
 
@@ -75,6 +76,10 @@ public final class MdvNpcPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(shops, this);
             getServer().getPluginManager().registerEvents(new NpcListener(this), this);
             getServer().getPluginManager().registerEvents(new com.mdvcraft.mdvnpc.routine.NetheriteNodeListener(routines),this);
+            // Acompañantes temporales (API para otros plugins): independientes de npcs.yml y de las rutinas.
+            companions = new com.mdvcraft.mdvnpc.companion.CompanionService(this);
+            getServer().getPluginManager().registerEvents(new com.mdvcraft.mdvnpc.companion.CompanionListener(companions), this);
+            companions.start();
             if (getServer().getPluginManager().isPluginEnabled("WorldGuard")) {
                 getServer().getPluginManager().registerEvents(new WorldGuardSpawnHook(this), this);
                 getLogger().info("WorldGuard detectado: excepción de mob-spawning/deny-spawn "
@@ -112,8 +117,10 @@ public final class MdvNpcPlugin extends JavaPlugin {
         routines.repository().install(routineSnapshot);
         routines.start();
         manager.start(definitions);
+        if (companions != null) companions.reconfigure();
     }
     @Override public void onDisable() {
+        if (companions != null) companions.close();
         if(npcEditor!=null)npcEditor.closeAll();
         if(workEditor!=null)workEditor.closeAll();
         if(prefixEditor!=null)prefixEditor.clear();
@@ -130,6 +137,7 @@ public final class MdvNpcPlugin extends JavaPlugin {
     }
     public Settings settings() { return settings; }
     public com.mdvcraft.mdvnpc.skin.SkinCacheService skins() { return skins; }
+    public com.mdvcraft.mdvnpc.companion.CompanionService companions() { return companions; }
     public ShopService shops() { return shops; }
     public com.mdvcraft.mdvnpc.routine.RoutineService routines() { return routines; }
     public com.mdvcraft.mdvnpc.routine.RoutineCommands routineCommands() { return routineCommands; }

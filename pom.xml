@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mdvcraft</groupId>
   <artifactId>MDVNPC</artifactId>
-  <version>1.12.0</version>
+  <version>1.13.0</version>
   <name>MDVNPC</name>
   <description>NPC, tiendas y rutinas para MDVCRAFT</description>
   <properties>
@@ -130,6 +130,20 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.4.2</version>
+        <executions>
+          <!-- MDVNPC-<version>-api.jar: solo la API pública, para compilar otros plugins contra ella. -->
+          <execution>
+            <id>api-jar</id>
+            <phase>package</phase>
+            <goals><goal>jar</goal></goals>
+            <configuration>
+              <classifier>api</classifier>
+              <includes>
+                <include>com/mdvcraft/mdvnpc/api/**</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

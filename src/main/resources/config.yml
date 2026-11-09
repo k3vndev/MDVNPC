@@ -113,6 +113,25 @@ routines:
   meal-max-seconds: 90
   beer-type: CONSUMABLE # ID interno de categoría MMOItems, no nombre traducido
   beer-id: CERVEZA
+# Acompañantes temporales que crean otros plugins mediante la API (MdvNpcApi).
+# No se guardan en npcs.yml ni tienen rutinas; sobreviven a /mdvnpc reload y
+# desaparecen al reiniciar. Cada uno solo es visible para sus jugadores visores.
+companions:
+  enabled: true
+  max-active: 20 # límite total en el servidor
+  movement-interval-ticks: 2 # 1..4; menor = movimiento más suave
+  follow-distance: 2.5 # bloques que deja entre él y el jugador al seguirlo
+  follow-speed: 4.3 # bloques/segundo (un jugador andando va a ~4.3)
+  catch-up-speed: 5.6 # cuando se ha quedado lejos (jugador corriendo)
+  catch-up-distance: 7
+  teleport-distance: 24 # más lejos que esto, reaparece detrás del jugador
+  stuck-teleport-seconds: 3 # atascado siguiendo: reaparece detrás del jugador
+  move-speed: 3.5 # velocidad por defecto de moveTo
+  lead-speed: 3.2 # velocidad al guiar
+  lead-max-gap: 7 # si el jugador guiado se aleja más, se para a esperarlo
+  stuck-fail-seconds: 20 # moveTo/lead sin progreso: termina con FAILED
+  default-name: '&6Guía'
+  default-skin: '' # nombre de jugador; vacío = Steve (si no hay plantilla)
 messages:
   prefix: '&8[&2MDVNPC&8] &7'
   no-permission: '&cNo tienes permiso.'

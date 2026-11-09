@@ -138,6 +138,7 @@ public final class RoutineService {
     public void close() { stop(); clocks.close(); }
     public void invalidateNodes(World world,int blockX,int blockZ) {
         if(navigator!=null)navigator.invalidateNodes(world,blockX,blockZ);
+        if(plugin.companions()!=null)plugin.companions().invalidateNodes(world,blockX,blockZ);
     }
     public void worldLoaded() { clocks.sync(); }
     public boolean enabled(String id) { var plan=repository.snapshot().plans().get(id); return plan!=null && plan.enabled() && !plan.goals().isEmpty(); }

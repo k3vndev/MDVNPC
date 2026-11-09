@@ -65,7 +65,8 @@ public final class WorldGuardSpawnHook implements Listener {
 
             event.setCancelled(false);
             plugin.getLogger().fine("Excepción WorldGuard aplicada exclusivamente al NPC "
-                    + plugin.manager().pendingNpcId(event.getEntity()));
+                    + (plugin.manager().isSpawningNpc(event.getEntity())
+                        ? plugin.manager().pendingNpcId(event.getEntity()) : "(acompañante temporal)"));
         } catch (RuntimeException | LinkageError exception) {
             plugin.getLogger().log(Level.WARNING,
                     "No se pudo consultar WorldGuard al generar un NPC propio; no se modificó la cancelación.", exception);
@@ -75,6 +76,7 @@ public final class WorldGuardSpawnHook implements Listener {
     private boolean belongsToInFlightNpc(CreatureSpawnEvent event) {
         return event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.CUSTOM
                 && event.getEntityType() == EntityType.VILLAGER
-                && plugin.manager().isSpawningNpc(event.getEntity());
+                && (plugin.manager().isSpawningNpc(event.getEntity())
+                    || plugin.companions() != null && plugin.companions().isSpawning(event.getEntity()));
     }
 }
