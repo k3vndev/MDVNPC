@@ -15,7 +15,7 @@ import java.util.UUID;
  *
  * <pre>{@code
  * CompanionSpec spec = CompanionSpec.builder(plugin, player.getLocation())
- *     .template("guia")      // copia nombre, skin y prefijo del NPC "guia" de npcs.yml
+ *     .template("guia")      // copia nombre y skin del NPC "guia" (sin modificarlo)
  *     .viewer(player)        // solo este jugador lo ve
  *     .build();
  * }</pre>
@@ -69,7 +69,7 @@ public final class CompanionSpec {
             this.spawn = Objects.requireNonNull(spawn, "spawn").clone();
         }
 
-        /** Id de un NPC de {@code npcs.yml} del que copiar nombre, skin, visibilidad del nombre y prefijo. */
+        /** Id de un NPC de {@code npcs.yml} del que copiar nombre, skin y visibilidad del nombre. El NPC no se modifica. */
         public Builder template(String npcId) { this.templateId = blankToNull(npcId); return this; }
 
         /** Nombre mostrado (admite códigos {@code &}). Sustituye al de la plantilla. */

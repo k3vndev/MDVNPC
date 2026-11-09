@@ -164,6 +164,7 @@ messages:
     - '&e/mdvnpc skin <id> <jugador> &7- Cambiar skin.'
     - '&e/mdvnpc enable <id> <true|false> &7- Activar/desactivar.'
     - '&e/mdvnpc rutinas <id> &7- Abrir el editor gráfico de rutinas.'
+    - '&e/mdvnpc companion &7- Probar un acompañante temporal visible solo para ti.'
     - '&e/mdvnpc reload &7- Recargar config.yml y la carpeta NPCs.'
 
 # Sonidos locales; una secuencia por NPC, aunque haya varios oyentes.

@@ -31,7 +31,8 @@ final class CompanionDefinitions {
                 NpcDefinition.Mode.NORMAL,
                 new NpcDefinition.TradeDialogue(false, 20, true, List.of()),
                 NpcDefinition.Traits.defaults(),
-                template != null ? template.speech() : NpcDefinition.Speech.defaults());
+                // De la plantilla solo se copian nombre y aspecto; habla con el formato por defecto.
+                NpcDefinition.Speech.defaults());
     }
 
     /**

@@ -155,7 +155,7 @@ class CompanionCoreTest {
         assertEquals("companion-1", def.id());
         assertEquals("&bAria", def.name());
         assertFalse(def.nameVisible());
-        assertEquals("&b[Aria]", def.speech().prefix());
+        assertNull(def.speech().prefix(), "solo se copian nombre y aspecto");
         assertEquals(NpcDefinition.Mode.NORMAL, def.mode());
         assertTrue(def.interaction().actions().isEmpty());
         assertFalse(def.dialogue().enabled());

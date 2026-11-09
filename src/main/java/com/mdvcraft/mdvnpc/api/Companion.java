@@ -23,7 +23,7 @@ public interface Companion {
 
     Plugin owner();
 
-    /** NPC de {@code npcs.yml} usado como plantilla de nombre/skin/prefijo, o null. */
+    /** NPC de {@code npcs.yml} usado como plantilla de nombre y aspecto, o null. */
     @Nullable String templateId();
 
     /** Nombre mostrado (con códigos de color sin traducir). */

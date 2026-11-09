@@ -9,9 +9,10 @@ import org.bukkit.entity.Player;
 import java.util.*;
 
 public final class NpcCommand implements CommandExecutor, TabCompleter {
-    private static final List<String> COMMANDS = List.of("edit", "editor", "menu", "trabajo", "herrero", "pescador", "help", "list", "status", "create", "movehere", "delete", "rename", "skin", "enable", "mode", "shop", "reload", "routine", "rutina", "rutinas", "clock", "rasgo", "trait");
+    private static final List<String> COMMANDS = List.of("edit", "editor", "menu", "trabajo", "herrero", "pescador", "help", "list", "status", "create", "movehere", "delete", "rename", "skin", "enable", "mode", "shop", "reload", "routine", "rutina", "rutinas", "clock", "rasgo", "trait", "companion");
     private final MdvNpcPlugin plugin;
-    public NpcCommand(MdvNpcPlugin plugin) { this.plugin = plugin; }
+    private final CompanionCommand companions;
+    public NpcCommand(MdvNpcPlugin plugin) { this.plugin = plugin; this.companions = new CompanionCommand(plugin); }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         var msg = plugin.messages();
         if (!sender.hasPermission("mdvnpc.admin")) { msg.send(sender, "no-permission"); return true; }
@@ -25,6 +26,7 @@ public final class NpcCommand implements CommandExecutor, TabCompleter {
                     plugin.npcEditor().open(player,args[1]);
                 }
                 case "routine", "rutina", "rutinas" -> plugin.routineCommands().command(sender, args);
+                case "companion" -> companions.command(sender, args);
                 case "herrero", "pescador" -> {
                     if(!(sender instanceof Player player)){msg.send(sender,"player-only");return true;}
                     if(args.length!=2)throw new IllegalArgumentException("/mdvnpc "+sub+" <id> - categoría de tienda y estaciones");
@@ -179,6 +181,10 @@ public final class NpcCommand implements CommandExecutor, TabCompleter {
             };
             String prefix = args[args.length-1].toLowerCase(Locale.ROOT);
             return options.stream().filter(v -> v.toLowerCase(Locale.ROOT).startsWith(prefix)).sorted().toList();
+        }
+        if (args.length >= 2 && args[0].equalsIgnoreCase("companion")) {
+            String prefix = args[args.length-1].toLowerCase(Locale.ROOT);
+            return companions.complete(args).stream().filter(v -> v.toLowerCase(Locale.ROOT).startsWith(prefix)).sorted().toList();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("clock")) return org.bukkit.Bukkit.getWorlds().stream().map(org.bukkit.World::getName).filter(n -> n.startsWith(args[1])).toList();
         Collection<String> choices = args.length == 1 ? COMMANDS : args.length == 2 && Set.of("status", "edit", "editor", "menu", "herrero", "pescador", "movehere", "delete", "rename", "skin", "enable", "mode", "shop", "rasgo", "trait").contains(args[0].toLowerCase(Locale.ROOT))

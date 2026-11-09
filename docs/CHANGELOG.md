@@ -1,3 +1,12 @@
+# MDVNPC 1.13.1 — comando de prueba de acompañantes
+
+- Nuevo `/mdvnpc companion` (solo `mdvnpc.admin`) para probar la API en el
+  juego: `spawn [plantilla]`, `follow`, `lead <x y z>`, `moveto <x y z>`,
+  `stop`, `tp`, `wave`, `swing`, `crouch`, `say`, `show`, `hide`, `remove` y
+  `list`. Cada admin controla un acompañante visible solo para él.
+- La plantilla solo copia nombre y aspecto (skin y visibilidad del nombre) del
+  NPC existente, sin editarlo; ya no copia su prefijo de chat.
+
 # MDVNPC 1.13.0 — acompañantes temporales para otros plugins
 
 - Nueva API pública `com.mdvcraft.mdvnpc.api` registrada en el

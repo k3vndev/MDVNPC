@@ -34,7 +34,7 @@ Todo se usa desde el **hilo principal**.
 
 ```java
 Companion guia = npcs.spawnCompanion(CompanionSpec.builder(this, spawn)
-        .template("guia")        // copia nombre, skin y prefijo del NPC "guia" (opcional)
+        .template("guia")        // copia nombre y skin del NPC "guia" (opcional; no lo modifica)
         .viewer(player)          // solo este jugador lo ve
         .build());
 
@@ -79,7 +79,7 @@ o guía, o al visor más cercano.
 - `gesture(WAVE)`: agacharse + golpe, dos veces (saludo de jugador).
 - `gesture(SWING)`: un golpe al aire. `gesture(CROUCH)`: agacharse dos veces.
 - `say(mensaje)`: a todos sus visores; `say(jugador, mensaje)`: solo a uno.
-  Usa el prefijo de la plantilla, o `&7<nombre> &f»` si no tiene.
+  Formato: `&7<nombre> &f» mensaje` (el prefijo de la plantilla no se copia).
 
 ## Eventos
 
@@ -87,6 +87,24 @@ o guía, o al visor más cercano.
   El click vanilla siempre se cancela (no recibe daño ni abre comercio).
 - `CompanionRemoveEvent`: se eliminó; `reason()` es `REMOVED`, `VIEWERS_LEFT`,
   `OWNER_DISABLED`, `SHUTDOWN` o `LOST`.
+
+## Probar en el juego: `/mdvnpc companion`
+
+Solo para `mdvnpc.admin`. Cada admin controla un acompañante de prueba visible
+solo para él (crear otro sustituye al anterior). Usa la API pública tal cual.
+
+| Comando | Qué hace |
+|---|---|
+| `spawn [plantilla]` | Lo crea en tu posición. Con plantilla copia nombre y skin de ese NPC (no lo edita). |
+| `follow [distancia]` | Te sigue. |
+| `lead <x y z>` | Te guía hasta ahí (admite `~`, p. ej. `~20 ~ ~`). Avisa al llegar o fallar. |
+| `moveto <x y z>` | Camina hasta ahí sin esperarte. |
+| `stop` / `tp` | Quieto / teletransportarlo a ti. |
+| `wave` / `swing` / `crouch` | Gestos. |
+| `say <texto>` | Habla por chat (solo a sus visores). |
+| `show <jugador>` / `hide <jugador>` | Añadir/quitar visores. |
+| `remove` | Eliminarlo. |
+| `list` | Todos los acompañantes activos de cualquier plugin. |
 
 ## Configuración (`config.yml`)
 
